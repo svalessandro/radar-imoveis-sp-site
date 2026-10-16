@@ -1,0 +1,697 @@
+<title>Radar de Imóveis SP</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: barra de filtros fixa no topo, resumo em 4 números, grade de fichas de imóvel
+   (foto + "conta" compra → mercado → margem); ficha completa abre num painel modal. */
+:root {
+  --bg: #f2f5f4;
+  --surface: #ffffff;
+  --surface-2: #e7edeb;
+  --ink: #13201c;
+  --ink-2: #47574f;
+  --ink-3: #6f7f79;
+  --line: #d3ddd9;
+  --accent: #0d6b59;
+  --accent-soft: #d5ebe5;
+  --on-accent: #ffffff;
+  --bar-base: #0d6b59;
+  --bar-cost: #b9c6c1;
+  --good: #0ca30c;
+  --warning: #fab219;
+  --critical: #d03b3b;
+  --good-soft: #dcf3dc;
+  --warning-soft: #fdf0cf;
+  --critical-soft: #f8dddd;
+  --neutral-soft: #e7edeb;
+  --shadow: 0 1px 2px rgba(19, 32, 28, .06), 0 4px 16px rgba(19, 32, 28, .06);
+  --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --radius: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111715; --surface: #19211f; --surface-2: #222c29; --ink: #edf3f0; --ink-2: #b4c2bc; --ink-3: #8a9a94;
+    --line: #2e3a36; --accent: #45b89f; --accent-soft: #1d3a33; --on-accent: #0b1512; --bar-base: #45b89f; --bar-cost: #4a5853;
+    --good-soft: #17331a; --warning-soft: #3a2f12; --critical-soft: #3d1c1c; --neutral-soft: #222c29;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 4px 16px rgba(0, 0, 0, .25);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111715; --surface: #19211f; --surface-2: #222c29; --ink: #edf3f0; --ink-2: #b4c2bc; --ink-3: #8a9a94;
+  --line: #2e3a36; --accent: #45b89f; --accent-soft: #1d3a33; --on-accent: #0b1512; --bar-base: #45b89f; --bar-cost: #4a5853;
+  --good-soft: #17331a; --warning-soft: #3a2f12; --critical-soft: #3d1c1c; --neutral-soft: #222c29;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 4px 16px rgba(0, 0, 0, .25);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.5; }
+.wrap { max-width: 1320px; margin: 0 auto; padding-inline: 16px; padding-block: 0 48px; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; letter-spacing: -.01em; }
+.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.label { font-size: 11.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-3); font-weight: 500; }
+a { color: var(--accent); }
+button, select, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Cabeçalho */
+.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; padding-block: 28px 18px; }
+.brand { display: flex; align-items: center; gap: 12px; }
+.mark { width: 38px; height: 38px; border-radius: 9px; background: var(--accent); display: grid; place-items: center; flex: none; }
+.mark svg { width: 22px; height: 22px; }
+.top h1 { font-size: clamp(24px, 3.2vw, 32px); font-weight: 700; }
+.sub { color: var(--ink-2); font-size: 13.5px; }
+.updated { color: var(--ink-3); font-size: 13px; text-align: right; }
+
+/* Resumo */
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; min-width: 0; }
+.kpi .v { font-family: var(--font-display); font-size: 28px; font-weight: 700; line-height: 1.15; margin-top: 4px; font-variant-numeric: tabular-nums; }
+.kpi .h { color: var(--ink-3); font-size: 12.5px; margin-top: 2px; }
+
+/* Filtros */
+.filters { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); padding-block: 10px; border-bottom: 1px solid var(--line); margin-bottom: 18px; }
+.frow { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; }
+.frow + .frow { margin-top: 8px; }
+.field { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.field label { font-size: 11px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .06em; }
+.ctl { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; min-height: 36px; }
+.ctl:hover { border-color: var(--ink-3); }
+#busca { width: min(260px, 100%); }
+select.ctl { max-width: 230px; }
+#precoMax { width: 140px; }
+.seg { display: inline-flex; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 2px; }
+.seg button { border: 0; background: transparent; padding: 6px 11px; border-radius: 6px; cursor: pointer; color: var(--ink-2); font-size: 13.5px; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+.check { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; color: var(--ink-2); cursor: pointer; padding: 6px 4px; }
+.check input { accent-color: var(--accent); width: 16px; height: 16px; }
+.count { margin-left: auto; color: var(--ink-2); font-size: 13.5px; }
+.linkbtn { border: 0; background: none; color: var(--accent); cursor: pointer; padding: 6px 4px; font-size: 13.5px; text-decoration: underline; text-underline-offset: 2px; }
+
+/* Status */
+.pill { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 3px 10px 3px 8px; font-size: 12.5px; font-weight: 600; color: var(--ink); white-space: nowrap; }
+.pill .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.st-good { background: var(--good-soft); } .st-good .dot { background: var(--good); }
+.st-warn { background: var(--warning-soft); } .st-warn .dot { background: var(--warning); }
+.st-crit { background: var(--critical-soft); } .st-crit .dot { background: var(--critical); }
+.st-none { background: var(--neutral-soft); } .st-none .dot { background: var(--ink-3); }
+.tag { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--ink-2); background: var(--surface-2); border-radius: 6px; padding: 2px 8px; white-space: nowrap; }
+
+/* Grade de fichas */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 16px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; display: flex; flex-direction: column; cursor: pointer; text-align: left; padding: 0; transition: transform .15s ease, box-shadow .15s ease; min-width: 0; }
+.card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+.photo { position: relative; aspect-ratio: 4 / 3; background: var(--surface-2); max-width: 100%; }
+.photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.photo .noimg { position: absolute; inset: 0; display: grid; place-items: center; color: var(--ink-3); font-size: 13px; }
+.photo .over { position: absolute; left: 10px; right: 10px; top: 10px; display: flex; justify-content: space-between; gap: 8px; }
+.photo .mod { background: rgba(10, 18, 16, .78); color: #fff; font-size: 11.5px; padding: 3px 8px; border-radius: 6px; letter-spacing: .02em; }
+.cbody { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 10px; flex: 1; }
+.ctitle { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.ctitle h3 { font-size: 18px; font-weight: 700; line-height: 1.2; }
+.ctitle .tipo { color: var(--ink-3); font-size: 12.5px; white-space: nowrap; }
+.addr { color: var(--ink-2); font-size: 13px; line-height: 1.35; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.ledger { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 12px; background: var(--surface-2); border-radius: 8px; padding: 10px 12px; }
+.ledger .v { font-family: var(--font-mono); font-size: 15px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.margin { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; border-top: 1px dashed var(--line); padding-top: 8px; grid-column: 1 / -1; margin-top: 6px; }
+.margin .big { font-family: var(--font-display); font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.margin .rs { font-family: var(--font-mono); font-size: 13.5px; color: var(--ink-2); }
+.meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; }
+.soon { background: var(--warning-soft); color: var(--ink); }
+.tag.novo { background: var(--accent); color: var(--on-accent); font-weight: 600; }
+
+/* Tabela */
+.tablewrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th, td { padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { font-size: 11.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-3); font-weight: 500; background: var(--surface); position: sticky; top: 0; }
+td.r, th.r { text-align: right; }
+tbody tr { cursor: pointer; }
+tbody tr:hover { background: var(--surface-2); }
+.thumb { width: 56px; height: 42px; object-fit: cover; border-radius: 5px; display: block; background: var(--surface-2); }
+
+.empty, .state { background: var(--surface); border: 1px dashed var(--line); border-radius: var(--radius); padding: 32px; text-align: center; color: var(--ink-2); }
+.mais { display: flex; justify-content: center; margin: 20px 0 4px; }
+
+/* Ficha completa */
+dialog { border: 0; padding: 0; border-radius: 14px; width: min(1040px, calc(100vw - 24px)); max-height: calc(100vh - 24px); background: var(--surface); color: var(--ink); box-shadow: 0 20px 60px rgba(0, 0, 0, .35); }
+dialog::backdrop { background: rgba(8, 14, 12, .55); }
+.dhead { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 18px 20px 12px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--surface); z-index: 1; }
+.dhead h2 { font-size: 22px; font-weight: 700; }
+.close { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; width: 36px; height: 36px; cursor: pointer; font-size: 18px; flex: none; }
+.dbody { padding: 18px 20px 24px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 22px; }
+.dbody section { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.dbody h3 { font-size: 15px; font-weight: 700; }
+.dphoto { border-radius: 10px; overflow: hidden; aspect-ratio: 4 / 3; background: var(--surface-2); max-width: 100%; position: relative; }
+.dphoto img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; font-size: 14px; }
+.kv dt { color: var(--ink-3); }
+.kv dd { margin: 0; text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.kv dd.txt { font-family: var(--font-body); }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.btn { display: inline-flex; align-items: center; gap: 6px; border-radius: 8px; padding: 8px 14px; font-weight: 500; font-size: 14px; text-decoration: none; cursor: pointer; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+.btn.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.desc { color: var(--ink-2); font-size: 14px; }
+.full { grid-column: 1 / -1; }
+
+/* Conta da operação: barras horizontais na mesma escala (valor de mercado = 100%) */
+.conta { display: flex; flex-direction: column; gap: 7px; }
+.crow { display: grid; grid-template-columns: minmax(130px, 38%) 1fr; gap: 10px; align-items: center; font-size: 13.5px; }
+.crow .nm { color: var(--ink-2); line-height: 1.25; }
+.crow .nm small { display: block; color: var(--ink-3); font-size: 11.5px; }
+.track { position: relative; height: 22px; }
+.bar { position: absolute; top: 3px; height: 16px; border-radius: 0 4px 4px 0; min-width: 2px; }
+.bar.base { background: var(--bar-base); left: 0; }
+.bar.cost { background: var(--bar-cost); }
+.bar.good { background: var(--good); }
+.bar.crit { background: var(--critical); }
+.track .val { position: absolute; top: 0; font-family: var(--font-mono); font-size: 12.5px; line-height: 22px; white-space: nowrap; color: var(--ink); }
+.crow.total { border-top: 1px solid var(--line); padding-top: 7px; font-weight: 600; }
+
+.comps th, .comps td { padding: 7px 10px; }
+.comps tbody tr { cursor: default; }
+.note { color: var(--ink-3); font-size: 12.5px; }
+
+footer { margin-top: 32px; color: var(--ink-3); font-size: 12.5px; max-width: 80ch; }
+
+@media (max-width: 900px) {
+  .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dbody { grid-template-columns: minmax(0, 1fr); }
+  .count { margin-left: 0; width: 100%; }
+  .filters { position: static; }
+  .updated { text-align: left; }
+}
+@media (max-width: 480px) {
+  .kpi .v { font-size: 22px; }
+  .crow { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  #precoMax { width: 120px; }
+}
+@media (prefers-reduced-motion: reduce) { .card, .card:hover { transition: none; transform: none; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <div class="mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--on-accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9.5h13V10"/><path d="M10 19.5v-5h4v5"/></svg>
+      </div>
+      <div>
+        <h1>Radar de Imóveis SP</h1>
+        <div class="sub">Imóveis à venda pela Caixa no estado de São Paulo, com valor de mercado estimado e margem de revenda</div>
+      </div>
+    </div>
+    <div class="updated" id="atualizado">Carregando dados…</div>
+  </header>
+
+  <section class="kpis" aria-label="Resumo">
+    <div class="kpi"><div class="label">Imóveis exibidos</div><div class="v" id="kTotal">–</div><div class="h" id="kTotalH">&nbsp;</div></div>
+    <div class="kpi"><div class="label">Oportunidades (margem ≥ 20%)</div><div class="v" id="kOport">–</div><div class="h" id="kOportH">&nbsp;</div></div>
+    <div class="kpi"><div class="label">Maior margem</div><div class="v" id="kMax">–</div><div class="h" id="kMaxH">&nbsp;</div></div>
+    <div class="kpi"><div class="label">Compra abaixo do mercado</div><div class="v" id="kDesc">–</div><div class="h" id="kDescH">&nbsp;</div></div>
+  </section>
+
+  <div class="filters" role="search">
+    <div class="frow">
+      <div class="field"><label for="busca">Buscar</label><input id="busca" class="ctl" type="search" placeholder="Cidade, bairro, rua ou nº do imóvel"></div>
+      <div class="field"><label for="modalidade">Modalidade</label><select id="modalidade" class="ctl"><option value="">Todas</option></select></div>
+      <div class="field"><label for="cidade">Cidade</label><select id="cidade" class="ctl"><option value="">Todas</option></select></div>
+      <div class="field"><label for="bairro">Bairro / condomínio</label><select id="bairro" class="ctl"><option value="">Todos</option></select></div>
+      <div class="field"><label for="margemMin">Margem mínima</label>
+        <select id="margemMin" class="ctl">
+          <option value="all">Todas (inclui sem avaliação)</option>
+          <option value="-999">Qualquer avaliada</option>
+          <option value="0">≥ 0%</option>
+          <option value="10">≥ 10%</option>
+          <option value="20" selected>≥ 20%</option>
+          <option value="30">≥ 30%</option>
+          <option value="50">≥ 50%</option>
+        </select></div>
+      <div class="field"><label for="precoMax">Preço máximo (R$)</label><input id="precoMax" class="ctl" type="number" min="0" step="10000" inputmode="numeric" placeholder="Sem limite"></div>
+      <div class="field"><label for="ordem">Ordenar por</label>
+        <select id="ordem" class="ctl">
+          <option value="margemPct">Maior margem (%)</option>
+          <option value="margem">Maior margem (R$)</option>
+          <option value="precoAsc">Menor preço de compra</option>
+          <option value="data">Data mais próxima</option>
+          <option value="abaixo">Mais abaixo do mercado</option>
+          <option value="recentes">Mais recentes no painel</option>
+        </select></div>
+    </div>
+    <div class="frow">
+      <div class="seg" role="group" aria-label="Tipo de imóvel" id="tipoSeg">
+        <button type="button" data-v="" aria-pressed="true">Todos</button>
+        <button type="button" data-v="APARTAMENTO" aria-pressed="false">Apartamentos</button>
+        <button type="button" data-v="CASA" aria-pressed="false">Casas</button>
+        <button type="button" data-v="TERRENO" aria-pressed="false">Terrenos</button>
+      </div>
+      <label class="check"><input type="checkbox" id="fConf"> Só avaliação confiável</label>
+      <label class="check"><input type="checkbox" id="fFgts"> Aceita FGTS</label>
+      <label class="check"><input type="checkbox" id="fFin"> Aceita financiamento</label>
+      <button type="button" class="linkbtn" id="limpar">Limpar filtros</button>
+      <div class="seg" role="group" aria-label="Visualização" id="viewSeg" style="margin-left:auto">
+        <button type="button" data-v="cards" aria-pressed="true">Fichas</button>
+        <button type="button" data-v="tabela" aria-pressed="false">Tabela</button>
+      </div>
+      <div class="count" id="contagem" aria-live="polite"></div>
+    </div>
+  </div>
+
+  <main id="lista"><div class="state">Carregando imóveis…</div></main>
+
+  <footer>
+    Valores de mercado são estimativas feitas com anúncios do ZAP Imóveis, VivaReal e imobiliárias locais (em Bauru: Lopes, Moraes e Concreto), com desconto de 15% sobre o preço anunciado (imóveis costumam ser vendidos cerca de 13% abaixo do anúncio): apartamentos de um mesmo condomínio têm um único valor de mercado, independente da área de cada unidade (preço mediano dos anúncios do condomínio ou, se forem poucos, dos anúncios da rua/bairro com o tamanho típico do condomínio); nos demais imóveis, a mediana do R$/m² da rua ou bairro multiplicada pela área. A margem já desconta documentação (5% do valor de mercado), comissão de venda (6%), comissão do leiloeiro (5% do preço, em leilões e licitações) e débitos de condomínio (10% da avaliação, em apartamentos). Em leilões, o preço de compra considerado é o lance mínimo do 2º leilão. Confira sempre o edital, a matrícula e a situação de ocupação antes de ofertar. "Confiável" indica 5 ou mais anúncios comparáveis. Quando não há pelo menos 3 anúncios comparáveis, o painel usa a avaliação da própria Caixa como referência (selo "Ref. Caixa"); esses imóveis não entram na contagem de oportunidades.
+  </footer>
+</div>
+
+<dialog id="ficha" aria-labelledby="fichaTitulo"></dialog>
+
+<script>
+(function () {
+  "use strict";
+  var MARGEM_OPORTUNIDADE = 20;
+  var brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+  var brl2 = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  var nf1 = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  var nf0 = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
+  var nfArea = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2 });
+
+  var dados = [];
+  var geradoEm = null;
+  var DIAS_NOVO = 7;
+  var porId = {};
+  var estado = { tipo: "", view: "cards", limite: 60 };
+  var hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function titulo(s) {
+    var minus = ["de", "da", "do", "das", "dos", "e"];
+    return String(s || "").toLowerCase().split(/\s+/).map(function (w, i) {
+      if (!w) return w;
+      if (i > 0 && minus.indexOf(w) >= 0) return w;
+      return w.charAt(0).toUpperCase() + w.slice(1);
+    }).join(" ");
+  }
+  function limparDesc(s) {
+    s = String(s || "").replace(/\s*\.\s*\.?\s*$/, "").trim();
+    return s === "." ? "" : s;
+  }
+  // Nome do local exibido: o condomínio identificado (cadastro em condominios.csv)
+  // tem prioridade sobre o bairro da Caixa, que costuma vir errado ou genérico.
+  function local(im) { return im.condominio || titulo(im.bairro); }
+  // Sem anúncios suficientes: o valor de referência é a avaliação da própria Caixa.
+  function refCaixa(im) { return !!(im.analise && im.analise.confiabilidade === "Ref. Caixa"); }
+  function rua(endereco) { return String(endereco || "").split(" - CEP")[0]; }
+  function parseData(s) {
+    var m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(s || "");
+    return m ? new Date(+m[3], +m[2] - 1, +m[1]) : null;
+  }
+  // Entrou no painel nos últimos DIAS_NOVO dias (contados da data da atualização).
+  function isNovo(im) {
+    var d = parseData(im.desde);
+    return !!(d && geradoEm && (geradoEm - d) / 86400000 <= DIAS_NOVO);
+  }
+  function diasAte(d) { return Math.round((d - hoje) / 86400000); }
+  function quando(n) {
+    if (n === 0) return "hoje";
+    if (n === 1) return "amanhã";
+    if (n > 1) return "em " + n + " dias";
+    return "encerrado";
+  }
+
+  function status(im) {
+    var a = im.analise;
+    if (!a) return { cls: "st-none", txt: "Sem avaliação" };
+    if (refCaixa(im)) return { cls: "st-warn", txt: "Ref. Caixa" };
+    if (a.margemPct >= MARGEM_OPORTUNIDADE) return { cls: "st-good", txt: "Oportunidade" };
+    if (a.margemPct >= 0) return { cls: "st-warn", txt: "Margem baixa" };
+    return { cls: "st-crit", txt: "Prejuízo" };
+  }
+  function pctTxt(v) { return (v > 0 ? "+" : "") + nf1.format(v) + "%"; }
+  function tipoTxt(t) { return { APARTAMENTO: "Apartamento", CASA: "Casa", TERRENO: "Terreno" }[t] || t; }
+  function pagamento(im) {
+    var f = (im.formasPagamento || "").toLowerCase();
+    return { fgts: f.indexOf("fgts") >= 0, fin: f.indexOf("financiamento") >= 0, avista: f.indexOf("exclusivamente") >= 0 };
+  }
+  // Data que importa para o corretor: término da venda online ou data do leilão
+  // cujo lance mínimo foi usado na conta (2º leilão).
+  function prazo(im) {
+    var d1 = parseData(im.data1), d2 = parseData(im.data2);
+    if (im.leilao && (d1 || d2)) {
+      var alvo = d2 || d1;
+      return { data: alvo, txt: (d2 ? "2º leilão " : "Leilão ") + im[d2 ? "data2" : "data1"].slice(0, 5), dias: diasAte(alvo) };
+    }
+    if (d1) return { data: d1, txt: "Até " + im.data1.slice(0, 5), dias: diasAte(d1) };
+    return null;
+  }
+  function abaixoMercado(im) {
+    return im.analise && im.analise.valorMercado > 0 ? 1 - im.precoCompra / im.analise.valorMercado : null;
+  }
+  function fotoHtml(im, cls) {
+    return im.foto
+      ? '<img src="' + esc(im.foto) + '" alt="Foto do imóvel ' + esc(im.id) + '" loading="lazy"' + (cls ? ' class="' + cls + '"' : "") + ">"
+      : '<div class="noimg">Sem foto</div>';
+  }
+
+  function ordemPt(a, b) { return a.localeCompare(b, "pt-BR"); }
+  // Bairro/condomínio é identificado junto com a cidade (o mesmo nome existe em várias).
+  function chaveLocal(im) { return im.cidade + "|" + local(im); }
+
+  function preencherSelects() {
+    var mods = {}, cidades = {};
+    dados.forEach(function (im) { mods[im.modalidade] = 1; cidades[im.cidade] = (cidades[im.cidade] || 0) + 1; });
+    Object.keys(mods).sort().forEach(function (m) { $("modalidade").insertAdjacentHTML("beforeend", '<option value="' + esc(m) + '">' + esc(m) + "</option>"); });
+    Object.keys(cidades).sort(ordemPt).forEach(function (c) {
+      $("cidade").insertAdjacentHTML("beforeend", '<option value="' + esc(c) + '">' + esc(c) + " (" + cidades[c] + ")</option>");
+    });
+    preencherBairros();
+  }
+
+  // Bairros/condomínios da cidade escolhida (com todas as cidades, o nome leva a cidade).
+  function preencherBairros() {
+    var cidade = $("cidade").value, bairros = {};
+    dados.forEach(function (im) {
+      if (!local(im) || (cidade && im.cidade !== cidade)) return;
+      bairros[chaveLocal(im)] = cidade ? local(im) : local(im) + " · " + im.cidade;
+    });
+    $("bairro").innerHTML = '<option value="">Todos</option>';
+    Object.keys(bairros).sort(function (a, b) { return ordemPt(bairros[a], bairros[b]); }).forEach(function (k) {
+      $("bairro").insertAdjacentHTML("beforeend", '<option value="' + esc(k) + '">' + esc(bairros[k]) + "</option>");
+    });
+  }
+
+  function filtrar() {
+    var q = $("busca").value.trim().toLowerCase();
+    var mod = $("modalidade").value, cidade = $("cidade").value, bairro = $("bairro").value, mm = $("margemMin").value;
+    var pmax = parseFloat($("precoMax").value);
+    var conf = $("fConf").checked, fgts = $("fFgts").checked, fin = $("fFin").checked;
+    return dados.filter(function (im) {
+      if (estado.tipo && im.tipo !== estado.tipo) return false;
+      if (mod && im.modalidade !== mod) return false;
+      if (cidade && im.cidade !== cidade) return false;
+      if (bairro && chaveLocal(im) !== bairro) return false;
+      if (mm !== "all") { if (!im.analise || im.analise.margemPct < parseFloat(mm)) return false; }
+      if (!isNaN(pmax) && pmax > 0 && im.precoCompra > pmax) return false;
+      if (conf && !(im.analise && im.analise.confiabilidade === "Confiável")) return false;
+      var p = pagamento(im);
+      if (fgts && !p.fgts) return false;
+      if (fin && !p.fin) return false;
+      if (q && (im.endereco + " " + im.id + " " + im.descricao + " " + (im.condominio || "") + " " + im.cidade).toLowerCase().indexOf(q) < 0) return false;
+      return true;
+    });
+  }
+
+  function ordenar(lista) {
+    var o = $("ordem").value;
+    // Avaliados por anúncios primeiro, depois "Ref. Caixa", por último sem avaliação.
+    var semAnalise = function (im) { return !im.analise ? 2 : refCaixa(im) ? 1 : 0; };
+    lista.sort(function (a, b) {
+      if (o === "precoAsc") return a.precoCompra - b.precoCompra;
+      if (o === "recentes") {
+        var ta = parseData(a.desde), tb = parseData(b.desde);
+        return (tb ? tb.getTime() : 0) - (ta ? ta.getTime() : 0)
+          || (b.analise ? b.analise.margemPct : -1e9) - (a.analise ? a.analise.margemPct : -1e9);
+      }
+      if (o === "data") {
+        var pa = prazo(a), pb = prazo(b);
+        var da = pa && pa.dias >= 0 ? pa.dias : 1e9, db = pb && pb.dias >= 0 ? pb.dias : 1e9;
+        return da - db || (b.analise ? b.analise.margemPct : -1e9) - (a.analise ? a.analise.margemPct : -1e9);
+      }
+      var s = semAnalise(a) - semAnalise(b);
+      if (s) return s;
+      if (!a.analise) return 0;
+      if (o === "margem") return b.analise.margem - a.analise.margem;
+      if (o === "abaixo") return abaixoMercado(b) - abaixoMercado(a);
+      return b.analise.margemPct - a.analise.margemPct;
+    });
+    return lista;
+  }
+
+  function atualizarKpis(lista) {
+    $("kTotal").textContent = nf0.format(lista.length);
+    $("kTotalH").textContent = "de " + nf0.format(dados.length) + " imóveis à venda";
+    var oport = dados.filter(function (im) { return im.analise && !refCaixa(im) && im.analise.margemPct >= MARGEM_OPORTUNIDADE; });
+    $("kOport").textContent = nf0.format(oport.length);
+    $("kOportH").textContent = "em toda a base, " + nf0.format(oport.filter(function (im) { return im.analise.confiabilidade === "Confiável"; }).length) + " com avaliação confiável";
+    var aval = lista.filter(function (im) { return im.analise && !refCaixa(im); });
+    if (aval.length) {
+      var top = aval.reduce(function (m, im) { return im.analise.margemPct > m.analise.margemPct ? im : m; });
+      $("kMax").textContent = pctTxt(top.analise.margemPct);
+      $("kMaxH").textContent = tipoTxt(top.tipo) + " · " + local(top) + " · " + top.cidade;
+      var ds = aval.map(abaixoMercado).sort(function (a, b) { return a - b; });
+      var med = ds.length % 2 ? ds[(ds.length - 1) / 2] : (ds[ds.length / 2 - 1] + ds[ds.length / 2]) / 2;
+      $("kDesc").textContent = nf0.format(med * 100) + "%";
+      $("kDescH").textContent = "mediana do preço de compra vs. valor de mercado";
+    } else {
+      $("kMax").textContent = "–"; $("kMaxH").textContent = "nenhum imóvel avaliado no filtro";
+      $("kDesc").textContent = "–"; $("kDescH").textContent = " ";
+    }
+  }
+
+  function cardHtml(im) {
+    var st = status(im), a = im.analise, pz = prazo(im), p = pagamento(im);
+    var meta = [];
+    if (isNovo(im)) meta.push('<span class="tag novo">Novo · desde ' + esc(im.desde.slice(0, 5)) + "</span>");
+    if (pz) meta.push('<span class="tag' + (pz.dias >= 0 && pz.dias <= 7 ? " soon" : "") + '">' + esc(pz.txt) + " · " + quando(pz.dias) + "</span>");
+    if (a) meta.push('<span class="tag">' + (refCaixa(im) ? "Sem anúncios suficientes" : esc(a.confiabilidade) + " · " + im.comparaveis.length + " comparáveis") + "</span>");
+    var cond = a && /^Mesmo Condomínio \((.+)\)$/.exec(a.criterio);
+    if (cond) meta.push('<span class="tag">Avaliado pelo condomínio</span>');
+    if (p.fgts) meta.push('<span class="tag">FGTS</span>');
+    if (p.fin) meta.push('<span class="tag">Financiamento</span>');
+    if (p.avista) meta.push('<span class="tag">Só à vista</span>');
+    var area = im.area > 0 ? nfArea.format(im.area) + " m²" : "";
+    return '<button type="button" class="card" data-id="' + esc(im.id) + '" aria-label="Abrir ficha do imóvel ' + esc(im.id) + '">' +
+      '<div class="photo">' + fotoHtml(im) +
+      '<div class="over"><span class="mod">' + esc(im.modalidade) + '</span><span class="pill ' + st.cls + '"><span class="dot"></span>' + st.txt + "</span></div></div>" +
+      '<div class="cbody">' +
+      '<div class="ctitle"><h3>' + esc(local(im) || "Bairro não informado") + '</h3><span class="tipo">' + tipoTxt(im.tipo) + (area ? " · " + area : "") + "</span></div>" +
+      '<div class="addr">' + esc(titulo(rua(im.endereco))) + " · <strong>" + esc(im.cidade) + "</strong></div>" +
+      '<div class="ledger">' +
+      '<div><div class="label">' + (im.leilao ? "Lance mínimo" : "Preço Caixa") + '</div><div class="v">' + brl.format(im.precoCompra) + "</div></div>" +
+      '<div><div class="label">' + (refCaixa(im) ? "Aval. Caixa" : "Mercado (est.)") + '</div><div class="v">' + (a ? brl.format(a.valorMercado) : "–") + "</div></div>" +
+      (a
+        ? '<div class="margin"><span class="big">' + pctTxt(a.margemPct) + '</span><span class="rs">margem ' + brl.format(a.margem) + "</span></div>"
+        : '<div class="margin"><span class="rs">Sem anúncios comparáveis para estimar o valor</span></div>') +
+      "</div>" +
+      '<div class="meta">' + meta.join("") + "</div>" +
+      "</div></button>";
+  }
+
+  function tabelaHtml(lista) {
+    var linhas = lista.map(function (im) {
+      var a = im.analise, st = status(im), pz = prazo(im);
+      return '<tr data-id="' + esc(im.id) + '" tabindex="0">' +
+        "<td>" + (im.foto ? '<img class="thumb" src="' + esc(im.foto) + '" alt="" loading="lazy">' : '<div class="thumb"></div>') + "</td>" +
+        '<td><span class="pill ' + st.cls + '"><span class="dot"></span>' + (a ? pctTxt(a.margemPct) : st.txt) + "</span></td>" +
+        "<td>" + esc(local(im)) + "</td>" +
+        "<td>" + esc(im.cidade) + "</td>" +
+        "<td>" + tipoTxt(im.tipo) + "</td>" +
+        "<td>" + esc(im.modalidade) + "</td>" +
+        '<td class="r num">' + brl.format(im.precoCompra) + "</td>" +
+        '<td class="r num">' + (a ? brl.format(a.valorMercado) : "–") + "</td>" +
+        '<td class="r num">' + (a ? brl.format(a.margem) : "–") + "</td>" +
+        '<td class="r num">' + (im.area > 0 ? nfArea.format(im.area) : "–") + "</td>" +
+        "<td>" + (a ? esc(a.confiabilidade) : "–") + "</td>" +
+        "<td>" + (pz ? esc(pz.txt) + " · " + quando(pz.dias) : "–") + "</td>" +
+        '<td class="num">' + esc(im.id) + "</td></tr>";
+    }).join("");
+    return '<div class="tablewrap"><table><thead><tr><th></th><th>Margem</th><th>Bairro / condomínio</th><th>Cidade</th><th>Tipo</th><th>Modalidade</th>' +
+      '<th class="r">Compra</th><th class="r">Mercado</th><th class="r">Margem R$</th><th class="r">Área m²</th><th>Avaliação</th><th>Prazo</th><th>Nº imóvel</th></tr></thead><tbody>' +
+      linhas + "</tbody></table></div>";
+  }
+
+  // Com milhares de imóveis, a lista é mostrada aos poucos ("Mostrar mais").
+  var POR_PAGINA = 60;
+  function render(maisUmaPagina) {
+    estado.limite = maisUmaPagina === true ? estado.limite + POR_PAGINA : POR_PAGINA;
+    var lista = ordenar(filtrar());
+    atualizarKpis(lista);
+    $("contagem").textContent = nf0.format(lista.length) + (lista.length === 1 ? " imóvel" : " imóveis");
+    if (!lista.length) {
+      $("lista").innerHTML = '<div class="empty">Nenhum imóvel com esses filtros. Reduza a margem mínima ou use "Limpar filtros".</div>';
+      return;
+    }
+    var visiveis = lista.slice(0, estado.limite), resto = lista.length - visiveis.length;
+    $("lista").innerHTML = (estado.view === "tabela"
+      ? tabelaHtml(visiveis)
+      : '<div class="grid">' + visiveis.map(cardHtml).join("") + "</div>") +
+      (resto > 0 ? '<div class="mais"><button type="button" class="btn" id="mostrarMais">Mostrar mais (' + nf0.format(resto) + " restantes)</button></div>" : "");
+  }
+
+  function contaHtml(im) {
+    var a = im.analise;
+    if (!a) return '<p class="desc">Não há anúncios comparáveis suficientes no bairro para estimar o valor de mercado deste imóvel.</p>';
+    var base = a.valorMercado;
+    var itens = [
+      { nm: "Preço de compra", sub: im.leilao ? "lance mínimo do 2º leilão" : "valor mínimo de venda", v: im.precoCompra },
+      { nm: "Documentação", sub: "5% do valor de mercado", v: a.documentacao },
+      { nm: "Comissão do leiloeiro", sub: "5% do preço de compra", v: a.comissaoLeiloeiro },
+      { nm: "Débitos de condomínio", sub: "10% da avaliação", v: a.debitosCondominio },
+      { nm: "Comissão de venda", sub: "6% do valor de mercado", v: a.comissaoVenda }
+    ].filter(function (i) { return i.v > 0; });
+    function pct(v) { return Math.max(0, Math.min(100, v / base * 100)); }
+    function valPos(left, w) { return left + w > 70 ? 'style="right:' + (100 - left) + '%;padding-right:6px"' : 'style="left:' + (left + w) + '%;padding-left:6px"'; }
+    var html = '<div class="conta" role="img" aria-label="Conta da operação: valor de mercado menos custos igual à margem">';
+    html += '<div class="crow"><div class="nm">' + (refCaixa(im) ? "Avaliação da Caixa<small>sem anúncios suficientes</small>" : "Valor de mercado<small>estimado</small>") + '</div><div class="track"><div class="bar base" style="width:100%"></div><span class="val" style="right:0;padding-right:6px;color:var(--on-accent)">' + brl.format(base) + "</span></div></div>";
+    var acum = 0;
+    itens.forEach(function (i) {
+      var w = pct(i.v), left = Math.min(acum, 100);
+      html += '<div class="crow"><div class="nm">− ' + i.nm + "<small>" + i.sub + '</small></div><div class="track" title="' + brl2.format(i.v) + '"><div class="bar cost" style="left:' + left + "%;width:" + w + '%"></div><span class="val" ' + valPos(left, w) + ">" + brl.format(i.v) + "</span></div></div>";
+      acum += w;
+    });
+    var m = a.margem, wm = pct(Math.abs(m));
+    html += '<div class="crow total"><div class="nm">= Margem de lucro<small>' + pctTxt(a.margemPct) + ' sobre o preço de compra</small></div><div class="track" title="' + brl2.format(m) + '">' +
+      (m >= 0
+        ? '<div class="bar good" style="left:' + Math.min(acum, 100) + "%;width:" + wm + '%"></div><span class="val" ' + valPos(Math.min(acum, 100 - wm), wm) + ">" + brl.format(m) + "</span>"
+        : '<div class="bar crit" style="left:0;width:' + wm + '%"></div><span class="val" style="left:' + wm + '%;padding-left:6px">' + brl.format(m) + "</span>") +
+      "</div></div></div>";
+    return html;
+  }
+
+  function compsHtml(im) {
+    if (!im.comparaveis.length) return "";
+    var a = im.analise;
+    var lista = im.comparaveis.map(function (c) { return { c: c, m2: c.area > 0 ? c.preco / c.area : 0 }; })
+      .sort(function (x, y) { return x.m2 - y.m2; });
+    var rows = lista.map(function (x) {
+      var c = x.c;
+      return "<tr><td>" + esc(c.portal) + "</td><td>" + esc(c.bairro) + (c.rua && c.rua !== "Endereço não informado" ? '<br><span class="note">' + esc(c.rua) + "</span>" : "") +
+        '</td><td class="r num">' + nfArea.format(c.area) + '</td><td class="r num">' + brl.format(c.preco) + '</td><td class="r num">' + brl.format(x.m2) +
+        '</td><td><a href="' + esc(c.link) + '" target="_blank" rel="noopener">Abrir ↗</a></td></tr>';
+    }).join("");
+    var m2s = lista.map(function (x) { return x.m2; });
+    var n = m2s.length, med = n % 2 ? m2s[(n - 1) / 2] : (m2s[n / 2 - 1] + m2s[n / 2]) / 2;
+    return '<section class="full"><h3>Anúncios comparáveis (' + n + ")</h3>" +
+      '<p class="note">Critério: ' + esc(a ? a.criterio : "") + " · mediana " + brl.format(med) + "/m² · área usada: " + nfArea.format(im.area) + " m²" +
+      (im.tipo === "TERRENO" ? " (área do terreno)" : " (área privativa)") + "</p>" +
+      '<div class="tablewrap"><table class="comps"><thead><tr><th>Portal</th><th>Bairro / rua</th><th class="r">Área m²</th><th class="r">Preço</th><th class="r">R$/m²</th><th></th></tr></thead><tbody>' +
+      rows + "</tbody></table></div></section>";
+  }
+
+  function abrirFicha(id) {
+    var im = porId[id];
+    if (!im) return;
+    var a = im.analise, st = status(im), p = pagamento(im), pz = prazo(im);
+    var precoM2 = im.area > 0 ? im.precoCompra / im.area : null;
+    var kv = [
+      ["Avaliação da Caixa", brl.format(im.valorAvaliacao)],
+      im.leilao ? ["Lance mínimo 1º leilão", im.coluna4 > 0 ? brl.format(im.coluna4) : "–"] : ["Desconto da Caixa", im.coluna4 > 0 ? nf1.format(im.coluna4) + "%" : "–"],
+      [im.leilao ? "Lance mínimo 2º leilão" : "Preço de venda", brl.format(im.precoCompra)],
+      [refCaixa(im) ? "Referência (avaliação Caixa)" : "Valor de mercado estimado", a ? brl.format(a.valorMercado) : "–"],
+      ["Compra abaixo do mercado", a ? nf0.format(abaixoMercado(im) * 100) + "%" : "–"],
+      ["R$/m² de compra", precoM2 ? brl.format(precoM2) : "–"],
+      ["No painel desde", im.desde ? esc(im.desde) : "antes de 07/10/2026"],
+      ["Área privativa", im.areaPrivativa > 0 ? nfArea.format(im.areaPrivativa) + " m²" : "–"],
+      ["Área total / terreno", im.areaTotal > 0 ? nfArea.format(im.areaTotal) + " m²" : "–"]
+    ];
+    var datas = [];
+    if (im.data1) datas.push([im.leilao ? "1º leilão" : "Encerramento", im.data1]);
+    if (im.data2) datas.push(["2º leilão", im.data2]);
+    var pagTxt = (im.formasPagamento || "").split("|").map(function (s) { return s.trim(); }).filter(Boolean);
+
+    $("ficha").innerHTML =
+      '<div class="dhead"><div><div class="label">' + esc(im.modalidade) + " · " + tipoTxt(im.tipo) + " · nº " + esc(im.id) + '</div><h2 id="fichaTitulo">' +
+      esc(local(im) || "Imóvel " + im.id) + '</h2><div class="desc">' + esc(titulo(im.endereco.replace(/ - SAO PAULO\s*$/, ""))) + "</div></div>" +
+      '<button type="button" class="close" id="fechar" aria-label="Fechar ficha">✕</button></div>' +
+      '<div class="dbody">' +
+      "<section>" +
+      '<div class="dphoto">' + fotoHtml(im) + "</div>" +
+      '<div class="actions"><a class="btn primary" href="' + esc(im.link) + '" target="_blank" rel="noopener">Ver na Caixa ↗</a>' +
+      '<button type="button" class="btn" id="copiarId">Copiar nº do imóvel</button></div>' +
+      (limparDesc(im.descricao) ? '<p class="desc">' + esc(limparDesc(im.descricao)) + "</p>" : "") +
+      "<h3>Prazos e pagamento</h3>" +
+      '<dl class="kv">' + datas.map(function (d) { var dd = parseData(d[1]); return "<dt>" + d[0] + "</dt><dd>" + esc(d[1]) + (dd ? " · " + quando(diasAte(dd)) : "") + "</dd>"; }).join("") +
+      (datas.length ? "" : "<dt>Prazo</dt><dd class=\"txt\">Venda direta, sem data</dd>") +
+      "</dl>" +
+      '<div class="meta">' + (p.fgts ? '<span class="tag">Aceita FGTS</span>' : "") + (p.fin ? '<span class="tag">Aceita financiamento</span>' : "") + (p.avista ? '<span class="tag">Somente à vista</span>' : "") + "</div>" +
+      (pagTxt.length ? '<p class="note">' + pagTxt.map(esc).join(" · ") + "</p>" : "") +
+      "</section>" +
+      "<section>" +
+      '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h3>Conta da operação</h3><span class="pill ' + st.cls + '"><span class="dot"></span>' + st.txt +
+      (a && !refCaixa(im) ? " · " + esc(a.confiabilidade) : "") + "</span></div>" +
+      contaHtml(im) +
+      "<h3>Valores</h3>" +
+      '<dl class="kv">' + kv.map(function (r) { return "<dt>" + r[0] + "</dt><dd>" + r[1] + "</dd>"; }).join("") + "</dl>" +
+      "</section>" +
+      compsHtml(im) +
+      "</div>";
+
+    $("fechar").addEventListener("click", fecharFicha);
+    $("copiarId").addEventListener("click", function () {
+      var b = this;
+      var ok = function () { b.textContent = "Nº copiado"; setTimeout(function () { b.textContent = "Copiar nº do imóvel"; }, 1800); };
+      try {
+        navigator.clipboard.writeText(im.id).then(ok, function () { b.textContent = "Nº " + im.id; });
+      } catch (e) { b.textContent = "Nº " + im.id; }
+    });
+    var dlg = $("ficha");
+    if (typeof dlg.showModal === "function") { if (!dlg.open) dlg.showModal(); } else { dlg.setAttribute("open", ""); }
+    dlg.scrollTop = 0;
+    try { if (location.hash !== "#" + id) history.replaceState(null, "", "#" + id); } catch (e) {}
+  }
+
+  function fecharFicha() {
+    var dlg = $("ficha");
+    if (typeof dlg.close === "function" && dlg.open) dlg.close(); else dlg.removeAttribute("open");
+  }
+
+  function ligarEventos() {
+    ["busca", "precoMax"].forEach(function (id) { $(id).addEventListener("input", render); });
+    ["modalidade", "bairro", "margemMin", "ordem", "fConf", "fFgts", "fFin"].forEach(function (id) { $(id).addEventListener("change", render); });
+    $("cidade").addEventListener("change", function () { preencherBairros(); render(); });
+    function seg(idGrupo, chave) {
+      $(idGrupo).addEventListener("click", function (e) {
+        var b = e.target.closest("button"); if (!b) return;
+        estado[chave] = b.getAttribute("data-v");
+        Array.prototype.forEach.call(this.querySelectorAll("button"), function (x) { x.setAttribute("aria-pressed", String(x === b)); });
+        render();
+      });
+    }
+    seg("tipoSeg", "tipo");
+    seg("viewSeg", "view");
+    $("limpar").addEventListener("click", function () {
+      $("busca").value = ""; $("modalidade").value = ""; $("cidade").value = ""; preencherBairros(); $("margemMin").value = "all";
+      $("precoMax").value = ""; $("ordem").value = "margemPct"; $("fConf").checked = false; $("fFgts").checked = false; $("fFin").checked = false;
+      estado.tipo = "";
+      Array.prototype.forEach.call($("tipoSeg").querySelectorAll("button"), function (x) { x.setAttribute("aria-pressed", String(x.getAttribute("data-v") === "")); });
+      render();
+    });
+    $("lista").addEventListener("click", function (e) {
+      if (e.target.closest("#mostrarMais")) { render(true); return; }
+      var el = e.target.closest("[data-id]"); if (el) abrirFicha(el.getAttribute("data-id"));
+    });
+    $("lista").addEventListener("keydown", function (e) {
+      if (e.key !== "Enter") return;
+      var el = e.target.closest("tr[data-id]"); if (el) abrirFicha(el.getAttribute("data-id"));
+    });
+    $("ficha").addEventListener("click", function (e) { if (e.target === this) fecharFicha(); });
+    $("ficha").addEventListener("close", function () { try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {} });
+  }
+
+  fetch("dados.json").then(function (r) {
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    return r.json();
+  }).then(function (j) {
+    dados = j.imoveis || [];
+    geradoEm = parseData(j.geradoEm);
+    dados.forEach(function (im) { porId[im.id] = im; });
+    $("atualizado").innerHTML = "Atualizado em <strong>" + esc(j.geradoEm) + "</strong><br>Fontes: Caixa, ZAP, VivaReal e imobiliárias locais";
+    preencherSelects();
+    ligarEventos();
+    render();
+    var h = (location.hash || "").slice(1);
+    if (h && porId[h]) abrirFicha(h);
+  }).catch(function (e) {
+    $("atualizado").textContent = "";
+    $("lista").innerHTML = '<div class="state">Não foi possível carregar os dados dos imóveis (' + esc(e.message) + "). Gere o arquivo dados.json rodando a análise e publique-o junto com esta página.</div>";
+  });
+})();
+</script>
