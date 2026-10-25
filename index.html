@@ -461,7 +461,7 @@ footer { margin-top: 32px; color: var(--ink-3); font-size: 12.5px; max-width: 80
     var meta = [];
     if (isNovo(im)) meta.push('<span class="tag novo">Novo · desde ' + esc(im.desde.slice(0, 5)) + "</span>");
     if (pz) meta.push('<span class="tag' + (pz.dias >= 0 && pz.dias <= 7 ? " soon" : "") + '">' + esc(pz.txt) + " · " + quando(pz.dias) + "</span>");
-    if (a) meta.push('<span class="tag">' + (refCaixa(im) ? "Sem anúncios suficientes" : esc(a.confiabilidade) + " · " + im.comparaveis.length + " comparáveis") + "</span>");
+    if (a) meta.push('<span class="tag">' + (refCaixa(im) ? "Sem anúncios suficientes" : esc(a.confiabilidade) + " · " + nComps(im) + " comparáveis") + "</span>");
     var cond = a && /^Mesmo Condomínio \((.+)\)$/.exec(a.criterio);
     if (cond) meta.push('<span class="tag">Avaliado pelo condomínio</span>');
     if (p.fgts) meta.push('<span class="tag">FGTS</span>');
@@ -556,10 +556,38 @@ footer { margin-top: 32px; color: var(--ink-3); font-size: 12.5px; max-width: 80
     return html;
   }
 
-  function compsHtml(im) {
-    if (!im.comparaveis.length) return "";
+  // Os anúncios comparáveis ficam em comparaveis/<id>.json e só são baixados ao abrir a ficha.
+  function nComps(im) { return im.comparaveis ? im.comparaveis.length : (im.nComparaveis || 0); }
+  var compsCache = {};
+  function carregarComps(im) {
+    if (im.comparaveis) return Promise.resolve(im.comparaveis);
+    if (!compsCache[im.id]) {
+      compsCache[im.id] = fetch("comparaveis/" + encodeURIComponent(im.id) + ".json").then(function (r) {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
+      }).catch(function (e) { delete compsCache[im.id]; throw e; });
+    }
+    return compsCache[im.id];
+  }
+  function compsSecao(im) {
+    if (!nComps(im)) return "";
+    return '<section class="full" id="compsSecao"><h3>Anúncios comparáveis (' + nComps(im) + ')</h3><p class="note">Carregando anúncios…</p></section>';
+  }
+  function preencherComps(im) {
+    if (!nComps(im)) return;
+    carregarComps(im).then(function (comps) {
+      var s = $("compsSecao");
+      if (s && porId[im.id] && $("ficha").getAttribute("data-id") === im.id) s.outerHTML = compsHtml(im, comps);
+    }, function (e) {
+      var s = $("compsSecao");
+      if (s) s.querySelector(".note").textContent = "Não foi possível carregar os anúncios (" + e.message + ").";
+    });
+  }
+
+  function compsHtml(im, comparaveis) {
+    if (!comparaveis.length) return "";
     var a = im.analise;
-    var lista = im.comparaveis.map(function (c) { return { c: c, m2: c.area > 0 ? c.preco / c.area : 0 }; })
+    var lista = comparaveis.map(function (c) { return { c: c, m2: c.area > 0 ? c.preco / c.area : 0 }; })
       .sort(function (x, y) { return x.m2 - y.m2; });
     var rows = lista.map(function (x) {
       var c = x.c;
@@ -569,7 +597,7 @@ footer { margin-top: 32px; color: var(--ink-3); font-size: 12.5px; max-width: 80
     }).join("");
     var m2s = lista.map(function (x) { return x.m2; });
     var n = m2s.length, med = n % 2 ? m2s[(n - 1) / 2] : (m2s[n / 2 - 1] + m2s[n / 2]) / 2;
-    return '<section class="full"><h3>Anúncios comparáveis (' + n + ")</h3>" +
+    return '<section class="full" id="compsSecao"><h3>Anúncios comparáveis (' + n + ")</h3>" +
       '<p class="note">Critério: ' + esc(a ? a.criterio : "") + " · mediana " + brl.format(med) + "/m² · área usada: " + nfArea.format(im.area) + " m²" +
       (im.tipo === "TERRENO" ? " (área do terreno)" : " (área privativa)") + "</p>" +
       '<div class="tablewrap"><table class="comps"><thead><tr><th>Portal</th><th>Bairro / rua</th><th class="r">Área m²</th><th class="r">Preço</th><th class="r">R$/m²</th><th></th></tr></thead><tbody>' +
@@ -621,8 +649,10 @@ footer { margin-top: 32px; color: var(--ink-3); font-size: 12.5px; max-width: 80
       "<h3>Valores</h3>" +
       '<dl class="kv">' + kv.map(function (r) { return "<dt>" + r[0] + "</dt><dd>" + r[1] + "</dd>"; }).join("") + "</dl>" +
       "</section>" +
-      compsHtml(im) +
+      compsSecao(im) +
       "</div>";
+    $("ficha").setAttribute("data-id", im.id);
+    preencherComps(im);
 
     $("fechar").addEventListener("click", fecharFicha);
     $("copiarId").addEventListener("click", function () {
