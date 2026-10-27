@@ -123,6 +123,8 @@ select.ctl { max-width: 230px; }
 .meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; }
 .soon { background: var(--warning-soft); color: var(--ink); }
 .tag.novo { background: var(--accent); color: var(--on-accent); font-weight: 600; }
+.tag.fracao { background: var(--warning-soft); color: var(--ink); font-weight: 600; }
+.aviso { background: var(--warning-soft); border-left: 3px solid var(--warning); border-radius: 6px; padding: 8px 12px; font-size: 13.5px; line-height: 1.4; }
 
 /* Tabela */
 .tablewrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
@@ -460,6 +462,7 @@ footer { margin-top: 32px; color: var(--ink-3); font-size: 12.5px; max-width: 80
     var st = status(im), a = im.analise, pz = prazo(im), p = pagamento(im);
     var meta = [];
     if (isNovo(im)) meta.push('<span class="tag novo">Novo · desde ' + esc(im.desde.slice(0, 5)) + "</span>");
+    if (im.fracaoIdeal > 0) meta.push('<span class="tag fracao">Fração ideal · ' + nf1.format(im.fracaoIdeal) + "% do terreno</span>");
     if (pz) meta.push('<span class="tag' + (pz.dias >= 0 && pz.dias <= 7 ? " soon" : "") + '">' + esc(pz.txt) + " · " + quando(pz.dias) + "</span>");
     if (a) meta.push('<span class="tag">' + (refCaixa(im) ? "Sem anúncios suficientes" : esc(a.confiabilidade) + " · " + nComps(im) + " comparáveis") + "</span>");
     var cond = a && /^Mesmo Condomínio \((.+)\)$/.exec(a.criterio);
@@ -598,8 +601,10 @@ footer { margin-top: 32px; color: var(--ink-3); font-size: 12.5px; max-width: 80
     var m2s = lista.map(function (x) { return x.m2; });
     var n = m2s.length, med = n % 2 ? m2s[(n - 1) / 2] : (m2s[n / 2 - 1] + m2s[n / 2]) / 2;
     return '<section class="full" id="compsSecao"><h3>Anúncios comparáveis (' + n + ")</h3>" +
-      '<p class="note">Critério: ' + esc(a ? a.criterio : "") + " · mediana " + brl.format(med) + "/m² · área usada: " + nfArea.format(im.area) + " m²" +
-      (im.tipo === "TERRENO" ? " (área do terreno)" : " (área privativa)") + "</p>" +
+      '<p class="note">Critério: ' + esc(a ? a.criterio : "") + (im.fracaoIdeal > 0
+        ? " · valor = " + nf1.format(im.fracaoIdeal) + "% do preço mediano dos lotes abaixo, menos 15% de desconto sobre o anúncio"
+        : " · mediana " + brl.format(med) + "/m² · área usada: " + nfArea.format(im.area) + " m²" +
+          (im.tipo === "TERRENO" ? " (área do terreno)" : " (área privativa)")) + "</p>" +
       '<div class="tablewrap"><table class="comps"><thead><tr><th>Portal</th><th>Bairro / rua</th><th class="r">Área m²</th><th class="r">Preço</th><th class="r">R$/m²</th><th></th></tr></thead><tbody>' +
       rows + "</tbody></table></div></section>";
   }
@@ -634,6 +639,10 @@ footer { margin-top: 32px; color: var(--ink-3); font-size: 12.5px; max-width: 80
       '<div class="dphoto">' + fotoHtml(im) + "</div>" +
       '<div class="actions"><a class="btn primary" href="' + esc(im.link) + '" target="_blank" rel="noopener">Ver na Caixa ↗</a>' +
       '<button type="button" class="btn" id="copiarId">Copiar nº do imóvel</button></div>' +
+      (im.fracaoIdeal > 0 ? '<p class="aviso"><strong>Fração ideal de ' + nf1.format(im.fracaoIdeal) + "% do terreno.</strong> " +
+        "Não é um imóvel nem um lote individual: é uma parte do terreno de um empreendimento (demolido, segundo o edital). " +
+        "O valor de mercado estimado é " + nf1.format(im.fracaoIdeal) + "% do preço mediano dos lotes inteiros anunciados na região. " +
+        "Averbação, demarcação e regularização ficam a cargo do comprador - leia o edital.</p>" : "") +
       (limparDesc(im.descricao) ? '<p class="desc">' + esc(limparDesc(im.descricao)) + "</p>" : "") +
       "<h3>Prazos e pagamento</h3>" +
       '<dl class="kv">' + datas.map(function (d) { var dd = parseData(d[1]); return "<dt>" + d[0] + "</dt><dd>" + esc(d[1]) + (dd ? " · " + quando(diasAte(dd)) : "") + "</dd>"; }).join("") +
