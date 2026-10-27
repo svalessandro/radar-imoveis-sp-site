@@ -249,6 +249,7 @@ footer { margin-top: 32px; color: var(--ink-3); font-size: 12.5px; max-width: 80
         <button type="button" data-v="APARTAMENTO" aria-pressed="false">Apartamentos</button>
         <button type="button" data-v="CASA" aria-pressed="false">Casas</button>
         <button type="button" data-v="TERRENO" aria-pressed="false">Terrenos</button>
+        <button type="button" data-v="OUTROS" aria-pressed="false">Comerciais e outros</button>
       </div>
       <label class="check"><input type="checkbox" id="fConf"> Só avaliação confiável</label>
       <label class="check"><input type="checkbox" id="fFgts"> Aceita FGTS</label>
@@ -338,7 +339,9 @@ footer { margin-top: 32px; color: var(--ink-3); font-size: 12.5px; max-width: 80
     return { cls: "st-crit", txt: "Prejuízo" };
   }
   function pctTxt(v) { return (v > 0 ? "+" : "") + nf1.format(v) + "%"; }
-  function tipoTxt(t) { return { APARTAMENTO: "Apartamento", CASA: "Casa", TERRENO: "Terreno" }[t] || t; }
+  function tipoTxt(t) { return { APARTAMENTO: "Apartamento", CASA: "Casa", TERRENO: "Terreno", OUTROS: "Comercial / outro" }[t] || t; }
+  // Não residenciais mostram o tipo da Caixa ("Prédio", "Galpão", "Sala"...).
+  function tipoIm(im) { return im.tipo === "OUTROS" && im.tipoCaixa ? im.tipoCaixa : tipoTxt(im.tipo); }
   function pagamento(im) {
     var f = (im.formasPagamento || "").toLowerCase();
     return { fgts: f.indexOf("fgts") >= 0, fin: f.indexOf("financiamento") >= 0, avista: f.indexOf("exclusivamente") >= 0 };
@@ -447,7 +450,7 @@ footer { margin-top: 32px; color: var(--ink-3); font-size: 12.5px; max-width: 80
     if (aval.length) {
       var top = aval.reduce(function (m, im) { return im.analise.margemPct > m.analise.margemPct ? im : m; });
       $("kMax").textContent = pctTxt(top.analise.margemPct);
-      $("kMaxH").textContent = tipoTxt(top.tipo) + " · " + local(top) + " · " + top.cidade;
+      $("kMaxH").textContent = tipoIm(top) + " · " + local(top) + " · " + top.cidade;
       var ds = aval.map(abaixoMercado).sort(function (a, b) { return a - b; });
       var med = ds.length % 2 ? ds[(ds.length - 1) / 2] : (ds[ds.length / 2 - 1] + ds[ds.length / 2]) / 2;
       $("kDesc").textContent = nf0.format(med * 100) + "%";
@@ -464,7 +467,7 @@ footer { margin-top: 32px; color: var(--ink-3); font-size: 12.5px; max-width: 80
     if (isNovo(im)) meta.push('<span class="tag novo">Novo · desde ' + esc(im.desde.slice(0, 5)) + "</span>");
     if (im.fracaoIdeal > 0) meta.push('<span class="tag fracao">Fração ideal · ' + nf1.format(im.fracaoIdeal) + "% do terreno</span>");
     if (pz) meta.push('<span class="tag' + (pz.dias >= 0 && pz.dias <= 7 ? " soon" : "") + '">' + esc(pz.txt) + " · " + quando(pz.dias) + "</span>");
-    if (a) meta.push('<span class="tag">' + (refCaixa(im) ? "Sem anúncios suficientes" : esc(a.confiabilidade) + " · " + nComps(im) + " comparáveis") + "</span>");
+    if (a) meta.push('<span class="tag">' + (refCaixa(im) ? (im.tipo === "OUTROS" ? "Não residencial · avaliação da Caixa" : "Sem anúncios suficientes") : esc(a.confiabilidade) + " · " + nComps(im) + " comparáveis") + "</span>");
     var cond = a && /^Mesmo Condomínio \((.+)\)$/.exec(a.criterio);
     if (cond) meta.push('<span class="tag">Avaliado pelo condomínio</span>');
     if (p.fgts) meta.push('<span class="tag">FGTS</span>');
@@ -475,7 +478,7 @@ footer { margin-top: 32px; color: var(--ink-3); font-size: 12.5px; max-width: 80
       '<div class="photo">' + fotoHtml(im) +
       '<div class="over"><span class="mod">' + esc(im.modalidade) + '</span><span class="pill ' + st.cls + '"><span class="dot"></span>' + st.txt + "</span></div></div>" +
       '<div class="cbody">' +
-      '<div class="ctitle"><h3>' + esc(local(im) || "Bairro não informado") + '</h3><span class="tipo">' + tipoTxt(im.tipo) + (area ? " · " + area : "") + "</span></div>" +
+      '<div class="ctitle"><h3>' + esc(local(im) || "Bairro não informado") + '</h3><span class="tipo">' + tipoIm(im) + (area ? " · " + area : "") + "</span></div>" +
       '<div class="addr">' + esc(titulo(rua(im.endereco))) + " · <strong>" + esc(im.cidade) + "</strong></div>" +
       '<div class="ledger">' +
       '<div><div class="label">' + (im.leilao ? "Lance mínimo" : "Preço Caixa") + '</div><div class="v">' + brl.format(im.precoCompra) + "</div></div>" +
@@ -496,7 +499,7 @@ footer { margin-top: 32px; color: var(--ink-3); font-size: 12.5px; max-width: 80
         '<td><span class="pill ' + st.cls + '"><span class="dot"></span>' + (a ? pctTxt(a.margemPct) : st.txt) + "</span></td>" +
         "<td>" + esc(local(im)) + "</td>" +
         "<td>" + esc(im.cidade) + "</td>" +
-        "<td>" + tipoTxt(im.tipo) + "</td>" +
+        "<td>" + tipoIm(im) + "</td>" +
         "<td>" + esc(im.modalidade) + "</td>" +
         '<td class="r num">' + brl.format(im.precoCompra) + "</td>" +
         '<td class="r num">' + (a ? brl.format(a.valorMercado) : "–") + "</td>" +
@@ -543,7 +546,7 @@ footer { margin-top: 32px; color: var(--ink-3); font-size: 12.5px; max-width: 80
     function pct(v) { return Math.max(0, Math.min(100, v / base * 100)); }
     function valPos(left, w) { return left + w > 70 ? 'style="right:' + (100 - left) + '%;padding-right:6px"' : 'style="left:' + (left + w) + '%;padding-left:6px"'; }
     var html = '<div class="conta" role="img" aria-label="Conta da operação: valor de mercado menos custos igual à margem">';
-    html += '<div class="crow"><div class="nm">' + (refCaixa(im) ? "Avaliação da Caixa<small>sem anúncios suficientes</small>" : "Valor de mercado<small>estimado</small>") + '</div><div class="track"><div class="bar base" style="width:100%"></div><span class="val" style="right:0;padding-right:6px;color:var(--on-accent)">' + brl.format(base) + "</span></div></div>";
+    html += '<div class="crow"><div class="nm">' + (refCaixa(im) ? "Avaliação da Caixa<small>" + (im.tipo === "OUTROS" ? "imóvel não residencial" : "sem anúncios suficientes") + "</small>" : "Valor de mercado<small>estimado</small>") + '</div><div class="track"><div class="bar base" style="width:100%"></div><span class="val" style="right:0;padding-right:6px;color:var(--on-accent)">' + brl.format(base) + "</span></div></div>";
     var acum = 0;
     itens.forEach(function (i) {
       var w = pct(i.v), left = Math.min(acum, 100);
@@ -631,7 +634,7 @@ footer { margin-top: 32px; color: var(--ink-3); font-size: 12.5px; max-width: 80
     var pagTxt = (im.formasPagamento || "").split("|").map(function (s) { return s.trim(); }).filter(Boolean);
 
     $("ficha").innerHTML =
-      '<div class="dhead"><div><div class="label">' + esc(im.modalidade) + " · " + tipoTxt(im.tipo) + " · nº " + esc(im.id) + '</div><h2 id="fichaTitulo">' +
+      '<div class="dhead"><div><div class="label">' + esc(im.modalidade) + " · " + tipoIm(im) + " · nº " + esc(im.id) + '</div><h2 id="fichaTitulo">' +
       esc(local(im) || "Imóvel " + im.id) + '</h2><div class="desc">' + esc(titulo(im.endereco.replace(/ - SAO PAULO\s*$/, ""))) + "</div></div>" +
       '<button type="button" class="close" id="fechar" aria-label="Fechar ficha">✕</button></div>' +
       '<div class="dbody">' +
