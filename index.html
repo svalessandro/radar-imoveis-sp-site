@@ -266,7 +266,7 @@ footer { margin-top: 32px; color: var(--ink-3); font-size: 12.5px; max-width: 80
   <main id="lista"><div class="state">Carregando imóveis…</div></main>
 
   <footer>
-    Valores de mercado são estimativas feitas com anúncios do ZAP Imóveis, VivaReal e imobiliárias locais (em Bauru: Lopes, Moraes e Concreto), com desconto de 15% sobre o preço anunciado (imóveis costumam ser vendidos cerca de 13% abaixo do anúncio): apartamentos de um mesmo condomínio têm um único valor de mercado, independente da área de cada unidade (preço mediano dos anúncios do condomínio ou, se forem poucos, dos anúncios da rua/bairro com o tamanho típico do condomínio); nos demais imóveis, a mediana do R$/m² da rua ou bairro multiplicada pela área. A margem já desconta documentação (5% do valor de mercado), comissão de venda (6%), comissão do leiloeiro (5% do preço, em leilões e licitações) e débitos de condomínio (10% da avaliação, em apartamentos). Em leilões, o preço de compra considerado é o lance mínimo do 2º leilão. Confira sempre o edital, a matrícula e a situação de ocupação antes de ofertar. "Confiável" indica 5 ou mais anúncios comparáveis. Quando não há pelo menos 3 anúncios comparáveis, o painel usa a avaliação da própria Caixa como referência (selo "Ref. Caixa"); esses imóveis não entram na contagem de oportunidades.
+    Valores de mercado são estimativas feitas com anúncios do ZAP Imóveis, VivaReal e imobiliárias locais (em Bauru: Lopes, Moraes e Concreto), com desconto de 5% sobre o preço anunciado: apartamentos de um mesmo condomínio têm um único valor de mercado, independente da área de cada unidade (preço mediano dos anúncios do condomínio ou, se forem poucos, dos anúncios da rua/bairro com o tamanho típico do condomínio); nos demais imóveis, a mediana do R$/m² da rua ou bairro multiplicada pela área. A margem já desconta documentação (5% do valor de mercado), comissão de venda (6%), comissão do leiloeiro (5% do preço, em leilões e licitações) e débitos de condomínio (10% da avaliação, em apartamentos). Em leilões, o preço de compra considerado é o lance mínimo do 2º leilão. Confira sempre o edital, a matrícula e a situação de ocupação antes de ofertar. "Confiável" indica 5 ou mais anúncios comparáveis. Quando não há pelo menos 3 anúncios comparáveis, o painel usa a avaliação da própria Caixa como referência (selo "Ref. Caixa"); esses imóveis não entram na contagem de oportunidades.
   </footer>
 </div>
 
@@ -605,7 +605,7 @@ footer { margin-top: 32px; color: var(--ink-3); font-size: 12.5px; max-width: 80
     var n = m2s.length, med = n % 2 ? m2s[(n - 1) / 2] : (m2s[n / 2 - 1] + m2s[n / 2]) / 2;
     return '<section class="full" id="compsSecao"><h3>Anúncios comparáveis (' + n + ")</h3>" +
       '<p class="note">Critério: ' + esc(a ? a.criterio : "") + (im.fracaoIdeal > 0
-        ? " · valor = " + nf1.format(im.fracaoIdeal) + "% do preço mediano dos lotes abaixo, menos 15% de desconto sobre o anúncio"
+        ? " · valor = " + nf1.format(im.fracaoIdeal) + "% do preço mediano dos lotes abaixo, menos 5% de desconto sobre o anúncio"
         : " · mediana " + brl.format(med) + "/m² · área usada: " + nfArea.format(im.area) + " m²" +
           (im.tipo === "TERRENO" ? " (área do terreno)" : " (área privativa)")) + "</p>" +
       '<div class="tablewrap"><table class="comps"><thead><tr><th>Portal</th><th>Bairro / rua</th><th class="r">Área m²</th><th class="r">Preço</th><th class="r">R$/m²</th><th></th></tr></thead><tbody>' +
